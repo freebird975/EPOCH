@@ -20,7 +20,8 @@ RAW_PATH = Path("data/raw/arxiv.xml")
 PAPERS_PATH = Path("data/papers.jsonl")
 MANIFEST_PATH = Path("data/manifest.json")
 INDEX_PATH = Path("data/bm25_index.json")
-DENSE_INDEX_PATH = Path("data/dense_index_harrier.faiss")
+DENSE_INDEX_PATH = Path("data/dense_index.faiss")
+DEFAULT_DENSE_MODEL = "BAAI/bge-small-en-v1.5"
 MODEL_CACHE = Path(".rag/models")
 QUESTIONS_PATH = Path("eval/seed_questions.jsonl")
 HAN_RE = re.compile(r"[\u3400-\u9fff]")
@@ -109,10 +110,11 @@ def main() -> int:
     dense_cmd.add_argument("--papers", type=Path, default=PAPERS_PATH)
     dense_cmd.add_argument("--index", type=Path, default=DENSE_INDEX_PATH)
     dense_cmd.add_argument("--model-cache", type=Path, default=MODEL_CACHE)
-    dense_cmd.add_argument("--model", default="microsoft/harrier-oss-v1-0.6b")
+    dense_cmd.add_argument("--model", default=DEFAULT_DENSE_MODEL)
 
     migrate_cmd = commands.add_parser("migrate-dense", help="将旧版 JSON 向量索引无重编码迁移到 FAISS")
-    migrate_cmd.add_argument("--legacy", type=Path, default=Path("data/dense_index_harrier.json"))
+    migrate_cmd.add_argument("--legacy", type=Path, required=True,
+                             help="要迁移的旧版 JSON Dense 索引；仓库不再附带旧格式索引副本")
     migrate_cmd.add_argument("--index", type=Path, default=DENSE_INDEX_PATH)
 
     audit_cmd = commands.add_parser("audit", help="检查论文语料元数据与摘要质量")
@@ -146,7 +148,7 @@ def main() -> int:
     compare_cmd.add_argument("--candidate-k", type=int, default=20)
     compare_cmd.add_argument("--questions", type=Path, default=QUESTIONS_PATH)
     compare_cmd.add_argument("--top-k", type=int, default=5)
-    compare_cmd.add_argument("--json", type=Path, default=Path("eval/retrieval_comparison_harrier.json"))
+    compare_cmd.add_argument("--json", type=Path, default=Path("eval/retrieval_comparison.json"))
 
     args = parser.parse_args()
     try:
@@ -183,8 +185,7 @@ def main() -> int:
             contains_chinese = bool(HAN_RE.search(args.question))
             retriever = ("dense" if contains_chinese else "hybrid") if args.retriever == "auto" else args.retriever
             searchers, _, metadata = _make_searchers({retriever}, args.index, args.dense_index, args.model_cache, args.candidate_k)
-            direct_multilingual = retriever in {"dense", "hybrid"} and metadata["dense_model"] == "microsoft/harrier-oss-v1-0.6b"
-            retrieval_query, api_key = _retrieval_query(args.question, no_translate=args.no_translate or direct_multilingual)
+            retrieval_query, api_key = _retrieval_query(args.question, no_translate=args.no_translate)
             if retrieval_query != args.question:
                 print(f"英文检索查询：{retrieval_query}")
             if args.retriever == "auto":

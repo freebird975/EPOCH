@@ -129,21 +129,24 @@ class LiteraturePipelineTests(unittest.TestCase):
             self.assertEqual(lit.main(), 0)
         key.assert_not_called()
 
-    def test_auto_chinese_uses_harrier_without_translation(self):
+    def test_auto_chinese_uses_bge_with_translation(self):
         question = "纠错式 RAG 如何评估检索结果？"
+        translated = "How does corrective RAG evaluate retrieval results?"
         seen = []
         searchers = {"dense": lambda query, limit: seen.append((query, limit)) or []}
-        metadata = {"dense_model": "microsoft/harrier-oss-v1-0.6b"}
+        metadata = {"dense_model": "BAAI/bge-small-en-v1.5"}
         with (
             patch("sys.argv", ["lit.py", "search", question]),
             patch("lit._make_searchers", return_value=(searchers, [], metadata)) as make_searchers,
-            patch("lit.resolve_api_key") as key,
+            patch("lit.resolve_api_key", return_value="test-only") as key,
+            patch("lit.translate_query_to_english", return_value=translated) as translate,
             redirect_stdout(io.StringIO()),
         ):
             self.assertEqual(lit.main(), 0)
         self.assertEqual(make_searchers.call_args.args[0], {"dense"})
-        self.assertEqual(seen, [(question, 5)])
-        key.assert_not_called()
+        self.assertEqual(seen, [(translated, 5)])
+        key.assert_called_once()
+        translate.assert_called_once_with(question, api_key="test-only")
 
     def test_auto_chinese_ask_keeps_original_question_for_generation(self):
         question = "纠错式 RAG 如何处理低质量检索？"
@@ -153,15 +156,16 @@ class LiteraturePipelineTests(unittest.TestCase):
         }
         with (
             patch("sys.argv", ["lit.py", "ask", question]),
-            patch("lit._make_searchers", return_value=({"dense": lambda _query, _limit: [hit]}, [], {"dense_model": "microsoft/harrier-oss-v1-0.6b"})),
-            patch("lit.translate_query_to_english") as translate,
+            patch("lit._make_searchers", return_value=({"dense": lambda _query, _limit: [hit]}, [], {"dense_model": "BAAI/bge-small-en-v1.5"})),
+            patch("lit.resolve_api_key", return_value="test-only"),
+            patch("lit.translate_query_to_english", return_value="How does corrective RAG handle poor retrieval?") as translate,
             patch("lit.answer", return_value="它评估检索质量。[1]") as generate,
             redirect_stdout(io.StringIO()),
         ):
             self.assertEqual(lit.main(), 0)
-        translate.assert_not_called()
+        translate.assert_called_once_with(question, api_key="test-only")
         self.assertEqual(generate.call_args.args[0], question)
-        self.assertEqual(generate.call_args.kwargs, {})
+        self.assertEqual(generate.call_args.kwargs, {"api_key": "test-only"})
 
     def test_translation_request_returns_only_search_query(self):
         seen = {}

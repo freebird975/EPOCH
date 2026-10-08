@@ -1,5 +1,6 @@
 # GPU-ready full-text indexing environment for the AutoDL CUDA 12.x image.
 # Keep fastembed-gpu mutually exclusive with the CPU-only fastembed package.
+pypdf
 huggingface-hub==1.33.0
 fsspec[http]==2026.9.0
 pyarrow==25.0.1

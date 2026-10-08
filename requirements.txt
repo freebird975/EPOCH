@@ -1,1 +1,7 @@
 pypdf
+fastembed==0.8.1
+faiss-cpu==1.15.1
+numpy>=2.3,<3
+huggingface-hub==1.33.0
+fsspec[http]==2026.9.0
+pyarrow==25.0.1

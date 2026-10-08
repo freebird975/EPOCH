@@ -34,7 +34,7 @@ def _units(path: Path):
         try:
             from pypdf import PdfReader
         except ImportError as exc:
-            raise RuntimeError("PDF 导入需要先运行: python -m pip install pypdf") from exc
+            raise RuntimeError("PDF 导入需要先运行: python -m pip install -r requirements.txt") from exc
         reader = PdfReader(str(path))
         for page_number, page in enumerate(reader.pages, 1):
             text = page.extract_text() or ""

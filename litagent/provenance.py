@@ -117,10 +117,10 @@ def collect_provenance(parent_path, child_path, bm25_path=None, dense_path=None,
                             "sha256": file_sha256(docs_path, cache=validation_cache) if Path(docs_path).is_file() else None}
                            if docs_path else None)
     try:
-        from litagent.dense import DEFAULT_MODEL, HARRIER_MODEL, DEFAULT_CACHE
+        from litagent.dense import DEFAULT_MODEL, DEFAULT_CACHE
         from litagent.reranker import DEFAULT_RERANK_MODEL
     except ImportError:
-        DEFAULT_MODEL, HARRIER_MODEL, DEFAULT_CACHE, DEFAULT_RERANK_MODEL = "BAAI/bge-small-en-v1.5", "microsoft/harrier-oss-v1-0.6b", Path(".rag/models"), "Xenova/ms-marco-MiniLM-L-6-v2"
+        DEFAULT_MODEL, DEFAULT_CACHE, DEFAULT_RERANK_MODEL = "BAAI/bge-small-en-v1.5", Path(".rag/models"), "Xenova/ms-marco-MiniLM-L-6-v2"
     dense_model = dense_meta.get("model_name") or DEFAULT_MODEL
     rerank_model = DEFAULT_RERANK_MODEL
     cache = Path(os.getenv("LIT_MODEL_CACHE", str(DEFAULT_CACHE)))
@@ -138,7 +138,7 @@ def collect_provenance(parent_path, child_path, bm25_path=None, dense_path=None,
             "dense": {"model": dense_model, "snapshot": dense_meta.get("model_snapshot") or _snapshot(cache, dense_model)},
             "reranker": ({"model": rerank_model, "snapshot": _snapshot(cache, rerank_model)} if rerank else None),
         },
-        "software": {"python": platform.python_version(), "dependencies": _version("numpy", "faiss-cpu", "fastembed", "sentence-transformers", "openai")},
+        "software": {"python": platform.python_version(), "dependencies": _version("numpy", "faiss-cpu", "fastembed", "fastembed-gpu", "onnxruntime", "onnxruntime-gpu", "huggingface-hub", "pyarrow", "fsspec", "pypdf")},
         "code": code,
         "parameters": parameters or {},
     }

@@ -38,7 +38,7 @@ def prepare(root: Path = ROOT) -> dict:
         import pyarrow.parquet as pq
         from huggingface_hub import hf_hub_download, hf_hub_url
     except ImportError as exc:
-        raise RuntimeError("请先安装 requirements-litsearch.txt") from exc
+        raise RuntimeError("请先安装 requirements.txt") from exc
 
     root.mkdir(parents=True, exist_ok=True)
     query_parquet = Path(hf_hub_download(

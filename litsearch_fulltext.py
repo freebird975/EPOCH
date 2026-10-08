@@ -164,7 +164,7 @@ def prepare_fulltext(root: Path = ROOT, limit: int | None = None, *, pilot_100: 
         import pyarrow.parquet as pq
         from huggingface_hub import hf_hub_url
     except ImportError as exc:
-        raise RuntimeError("请先安装 requirements-litsearch.txt") from exc
+        raise RuntimeError("请先安装 requirements.txt") from exc
 
     if limit is not None and limit < 1:
         raise ValueError("--limit 必须大于 0")

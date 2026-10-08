@@ -16,6 +16,12 @@
 | `tests/` | 离线单元与回归测试 |
 | `DEVELOPMENT_GUIDE.md`、`eval/RESULTS.md` | 架构、开发记录和评测边界 |
 
+## 安装依赖
+
+CPU 默认只需一个依赖清单：`requirements.txt`，覆盖通用文档 RAG、论文摘要检索和全文流程。PDF 导入、FAISS、BGE embedding 和 LitSearch 数据读取所需的库都在其中。
+
+如果使用已配置好兼容 CUDA 运行时的环境，可用 `requirements-litsearch-gpu.txt` 替代 `requirements.txt`，不要同时安装两份；GPU 清单将 CPU 版 FastEmbed 换成 GPU 版。
+
 ## 快速运行：通用文档 RAG
 
 需要 Python 3.11 或更新版本。
@@ -34,7 +40,6 @@ python -m venv .venv
 已包含 100 篇论文的标题与摘要、BM25 索引和 arXiv Atom 原始响应快照。该样本只支持摘要级检索，不代表全文检索。
 
 ```powershell
-.venv\Scripts\python.exe -m pip install -r requirements-lit.txt
 .venv\Scripts\python.exe lit.py search "corrective retrieval" --retriever bm25
 ```
 
@@ -43,7 +48,6 @@ python -m venv .venv
 全文数据和索引不会放进 Git 仓库。以下步骤会从固定版本的 LitSearch/S2ORC 数据源准备试点语料，并在本地生成父文档、子块及索引。首次运行会下载数据和模型，需预留磁盘空间与网络时间。
 
 ```powershell
-.venv\Scripts\python.exe -m pip install -r requirements-litsearch.txt
 .venv\Scripts\python.exe litsearch.py prepare
 .venv\Scripts\python.exe litsearch_fulltext.py prepare --pilot-100
 .venv\Scripts\python.exe litsearch_fulltext.py chunk

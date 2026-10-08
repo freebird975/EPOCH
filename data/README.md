@@ -1,6 +1,6 @@
 # 本地数据说明
 
-此目录只保留了一个约 100 篇论文的标题与摘要级样本、其 BM25/Dense 对照索引、来源清单和原始 arXiv Atom 响应。该小样本用于旧的摘要检索基线及单元测试，不是全文库，也不用于重现全量 LitSearch 指标。
+此目录只保留了一个约 100 篇论文的标题与摘要级样本、BM25 索引、BGE/FAISS Dense 索引、来源清单和原始 arXiv Atom 响应。该小样本用于轻量检索示例及单元测试，不是全文库，也不用于重现全量 LitSearch 指标。
 
 `data/litsearch/` 被 Git 忽略。LitSearch 元数据、S2ORC 全文、生成的子块、BM25 SQLite、FAISS 全文索引和运行记录需在本地按 `README.md` 的命令准备。不要把下载的论文 PDF 或未确认授权的全文提交到公开仓库。
 

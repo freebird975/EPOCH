@@ -23,7 +23,7 @@ def load_reranker(model_name: str = DEFAULT_RERANK_MODEL, cache_dir: Path = Path
     try:
         from fastembed.rerank.cross_encoder import TextCrossEncoder
     except ImportError as exc:
-        raise RuntimeError("缺少 Cross Encoder 依赖；请安装 requirements-litsearch.txt") from exc
+        raise RuntimeError("缺少 Cross Encoder 依赖；请运行 python -m pip install -r requirements.txt") from exc
     threads = int(os.getenv("LIT_RERANK_THREADS", str(min(os.cpu_count() or 2, 8))))
     if threads < 1:
         raise ValueError("LIT_RERANK_THREADS 必须大于 0")

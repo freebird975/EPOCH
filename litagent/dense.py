@@ -17,15 +17,12 @@ from .corpus import load_papers
 from .artifacts import file_signature, verify_sha256
 
 DEFAULT_MODEL = "BAAI/bge-small-en-v1.5"
-HARRIER_MODEL = "microsoft/harrier-oss-v1-0.6b"
 DEFAULT_CACHE = Path(".rag/models")
 INDEX_VERSION = 3
 STREAMING_INDEX_VERSION = 4
 
 
-def _embedding_backend_version(model_name: str) -> str:
-    if model_name == HARRIER_MODEL:
-        return version("sentence-transformers")
+def _embedding_backend_version() -> str:
     try:
         return version("fastembed")
     except PackageNotFoundError:
@@ -41,47 +38,11 @@ def _embedding_batch_size(default: int = 16) -> int:
     return batch_size
 
 
-class HarrierEmbedding:
-    """Sentence Transformers adapter with the model card's retrieval query prompt."""
-
-    model_name = HARRIER_MODEL
-    backend_name = "sentence-transformers"
-
-    def __init__(self, cache_dir: Path, offline: bool):
-        try:
-            from sentence_transformers import SentenceTransformer
-        except ImportError as exc:
-            raise RuntimeError("缺少 Harrier 依赖；请运行 python -m pip install -r requirements-harrier.txt") from exc
-        self.model = SentenceTransformer(
-            HARRIER_MODEL,
-            cache_folder=str(cache_dir),
-            local_files_only=offline,
-            device=os.getenv("LIT_EMBED_DEVICE", "cpu"),
-            model_kwargs={"dtype": "auto"},
-        )
-        ref_path = cache_dir / "models--microsoft--harrier-oss-v1-0.6b" / "refs" / "main"
-        self.snapshot = ref_path.read_text(encoding="utf-8").strip() if ref_path.is_file() else "unknown"
-
-    def passage_embed(self, texts: list[str], batch_size: int = 16):
-        return self.model.encode(texts, batch_size=_embedding_batch_size(batch_size),
-                                 normalize_embeddings=True, show_progress_bar=False)
-
-    def query_embed(self, question: str):
-        return self.model.encode([question], prompt_name="web_search_query", normalize_embeddings=True, show_progress_bar=False)
-
-
 def load_model(model_name: str = DEFAULT_MODEL, cache_dir: Path = DEFAULT_CACHE, *, offline: bool = True):
-    if model_name == HARRIER_MODEL:
-        try:
-            return HarrierEmbedding(cache_dir, offline)
-        except Exception as exc:
-            if offline:
-                raise RuntimeError("本地 Harrier 模型不可用；请先运行 python lit.py index-dense --model microsoft/harrier-oss-v1-0.6b") from exc
-            raise RuntimeError(f"无法加载 Harrier 模型: {exc}") from exc
     try:
         from fastembed import TextEmbedding
     except ImportError as exc:
-        raise RuntimeError("缺少 FastEmbed；请运行 python -m pip install -r requirements-lit.txt") from exc
+        raise RuntimeError("缺少 FastEmbed；请运行 python -m pip install -r requirements.txt") from exc
     threads = int(os.getenv("LIT_EMBED_THREADS", str(min(os.cpu_count() or 2, 8))))
     if threads < 1:
         raise ValueError("LIT_EMBED_THREADS 必须大于 0")
@@ -232,8 +193,7 @@ def build_dense_index(papers_path: Path, index_path: Path, model_name: str = DEF
     _meta_path(index_path)
     if not papers_path.is_file():
         raise FileNotFoundError(f"Dense 子块语料不存在: {papers_path}")
-    harrier_ref = cache_dir / "models--microsoft--harrier-oss-v1-0.6b" / "refs" / "main"
-    model = load_model(model_name, cache_dir, offline=model_name == HARRIER_MODEL and harrier_ref.is_file())
+    model = load_model(model_name, cache_dir, offline=False)
     batch_size = _embedding_batch_size()
     index_path.parent.mkdir(parents=True, exist_ok=True)
     docs_path = _dense_docs_path(index_path)
@@ -317,7 +277,7 @@ def build_dense_index(papers_path: Path, index_path: Path, model_name: str = DEF
         "model_snapshot": _snapshot(model),
         "embedding_mode": "passage_embed/query_embed",
         "embedding_backend": getattr(model, "backend_name", "fastembed"),
-        "backend_version": _embedding_backend_version(model_name),
+        "backend_version": _embedding_backend_version(),
         "dimension": faiss_index.d,
         "documents": document_count,
         "batch_size": batch_size,

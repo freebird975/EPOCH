@@ -219,15 +219,16 @@ def rebuild(parent: Path, child: Path, *, bm25: Path | None = None, dense: Path 
         shutil.rmtree(temp_root, ignore_errors=True)
 
 
-def write_lock(path: Path = Path("requirements-runtime-lock.txt")) -> None:
-    packages = ("fastembed", "faiss-cpu", "numpy", "sentence-transformers", "openai", "requests",
-                "onnxruntime", "tokenizers", "transformers", "torch", "huggingface-hub", "pyarrow", "fsspec")
+def write_lock(path: Path = Path(".rag/runtime-lock.txt")) -> None:
+    packages = ("pypdf", "fastembed", "fastembed-gpu", "faiss-cpu", "numpy",
+                "onnxruntime", "onnxruntime-gpu", "huggingface-hub", "pyarrow", "fsspec")
     rows = []
     for package in packages:
         try:
             rows.append(f"{package}=={importlib.metadata.version(package)}")
         except importlib.metadata.PackageNotFoundError:
             continue
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
 
@@ -271,7 +272,7 @@ def main() -> int:
     build.add_argument("--chunk-size", type=int, default=1800)
     build.add_argument("--overlap", type=int, default=240)
     lock = sub.add_parser("lock")
-    lock.add_argument("--output", type=Path, default=Path("requirements-runtime-lock.txt"))
+    lock.add_argument("--output", type=Path, default=Path(".rag/runtime-lock.txt"))
     models = sub.add_parser("cache-models", help="显式下载 BGE 和 Cross Encoder 到本地缓存")
     models.add_argument("--model-cache", type=Path, default=Path(".rag/models"))
     snapshot = sub.add_parser("source-snapshot", help="归档当前源码和依赖文件，供按哈希恢复提示词与实现")
