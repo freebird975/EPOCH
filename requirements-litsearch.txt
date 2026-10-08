@@ -1,0 +1,4 @@
+-r requirements-lit.txt
+huggingface-hub==1.33.0
+fsspec[http]==2026.9.0
+pyarrow==25.0.1

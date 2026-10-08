@@ -1,0 +1,36 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Python environments and caches
+.venv/
+venv/
+.rag/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage*
+htmlcov/
+.tmp/
+
+# Downloaded full corpus, generated full-text chunks, and indexes
+data/litsearch/
+data/**/runs/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.mmap
+
+# Local evaluation outputs and logs
+eval/*.checkpoint.jsonl
+eval/*.log
+eval/*smoke_runs*.jsonl
+
+# Editor and OS files
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini

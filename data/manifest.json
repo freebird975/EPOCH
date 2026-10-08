@@ -1,0 +1,11 @@
+{
+  "api": "https://export.arxiv.org/api/query",
+  "feed_title": "arXiv Query: search_query=all:\"retrieval augmented generation\" AND (cat:cs.IR OR cat:cs.CL)&id_list=&start=0&max_results=100",
+  "feed_updated_at": "2026-09-29T08:27:58Z",
+  "total_results": 3907,
+  "raw_sha256": "d0926e9069399d331eabdf1f70107b4522d66b4c07ec97f0c999a71edc35d1fc",
+  "normalized_count": 100,
+  "evidence_scope": "abstract_only",
+  "raw_path": "data/raw/arxiv.xml",
+  "papers_path": "data/papers.jsonl"
+}

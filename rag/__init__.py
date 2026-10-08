@@ -1,0 +1,1 @@
+"""Small, inspectable RAG pipeline."""

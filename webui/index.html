@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LitSearch 全文 RAG · 本地界面</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --line: #e3e6ea; --line-strong: #c9cfd6;
+    --ink: #1c2330; --ink-2: #55606e; --ink-3: #8a94a3;
+    --accent: #3b5bdb; --accent-soft: #edf1fe;
+    --ok: #18794e; --ok-bg: #e6f4ec;
+    --warn: #9a5b00; --warn-bg: #fdf0dd;
+    --bad: #b42318; --bad-bg: #fdeceb;
+    --chip: #eef0f3;
+    --mono: "Cascadia Code", Consolas, "Courier New", monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.65 -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  }
+  header {
+    position: sticky; top: 0; z-index: 20; background: var(--panel);
+    border-bottom: 1px solid var(--line); padding: 10px 22px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 16px; margin: 0; letter-spacing: .2px; }
+  header h1 small { color: var(--ink-3); font-weight: 400; margin-left: 8px; }
+  .pill {
+    font-size: 12px; padding: 2px 10px; border-radius: 999px;
+    background: var(--chip); color: var(--ink-2); white-space: nowrap;
+  }
+  .pill.ok { background: var(--ok-bg); color: var(--ok); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+  .pill.bad { background: var(--bad-bg); color: var(--bad); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 18px 22px 140px; }
+
+  /* ---------- 配置区 ---------- */
+  .config {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 16px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  }
+  .seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 9px; overflow: hidden; }
+  .seg button {
+    border: 0; background: var(--panel); color: var(--ink-2); padding: 6px 14px;
+    font-size: 13px; cursor: pointer;
+  }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .seg button:disabled { opacity: .45; cursor: not-allowed; }
+  .field { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-2); }
+  .field select, .field input[type=number] {
+    font: inherit; color: var(--ink); padding: 5px 8px; border: 1px solid var(--line-strong);
+    border-radius: 8px; background: var(--panel);
+  }
+  .field input[type=number] { width: 62px; }
+  details.adv { font-size: 13px; color: var(--ink-2); }
+  details.adv summary { cursor: pointer; user-select: none; }
+  details.adv .adv-body { display: flex; gap: 16px; padding-top: 8px; flex-wrap: wrap; }
+
+  /* ---------- 对话区 ---------- */
+  #chat { margin-top: 20px; display: flex; flex-direction: column; gap: 18px; }
+  .msg-user {
+    align-self: flex-end; max-width: 78%; background: var(--accent); color: #fff;
+    padding: 10px 16px; border-radius: 14px 14px 4px 14px; white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .msg-ai {
+    align-self: stretch; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; padding: 14px 18px;
+  }
+  .msg-ai .meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  .msg-ai .meta .time { color: var(--ink-3); font-size: 12px; margin-left: auto; }
+  .answer { white-space: pre-wrap; word-break: break-word; }
+  .answer p { margin: 0 0 .6em; }
+  .answer ul, .answer ol { margin: .2em 0 .7em; padding-left: 1.5em; }
+  .answer code {
+    font-family: var(--mono); font-size: .9em; background: var(--chip);
+    padding: 1px 5px; border-radius: 5px;
+  }
+  sup.cite {
+    font-family: var(--mono); font-size: 11px; color: var(--accent);
+    background: var(--accent-soft); border-radius: 5px; padding: 0 4px; margin: 0 1px;
+    cursor: pointer; user-select: none;
+  }
+  sup.cite:hover { background: var(--accent); color: #fff; }
+
+  /* ---------- 证据/结果卡片 ---------- */
+  .sec-title {
+    font-size: 13px; font-weight: 600; color: var(--ink-2);
+    margin: 16px 0 8px; display: flex; align-items: center; gap: 8px;
+  }
+  .ctx-card, .paper-card {
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px;
+    margin-bottom: 10px; background: #fcfcfd; transition: box-shadow .3s;
+  }
+  .ctx-card.flash, .paper-card.flash { box-shadow: 0 0 0 3px var(--accent-soft); border-color: var(--accent); }
+  .ctx-head, .paper-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .ctx-num {
+    font-family: var(--mono); font-size: 12px; background: var(--accent-soft);
+    color: var(--accent); border-radius: 6px; padding: 1px 7px; flex: none;
+  }
+  .ctx-head .t, .paper-head .t { font-weight: 600; font-size: 14px; }
+  .muted { color: var(--ink-3); font-size: 12px; }
+  .ctx-text, .chunk-text {
+    font-size: 13.5px; color: var(--ink-2); margin-top: 6px; white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .clamp { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+  .more {
+    border: 0; background: none; color: var(--accent); font-size: 12.5px;
+    cursor: pointer; padding: 2px 0;
+  }
+  .tag {
+    font-family: var(--mono); font-size: 11px; background: var(--chip); color: var(--ink-2);
+    border-radius: 5px; padding: 1px 6px;
+  }
+  details.fold { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
+  details.fold summary {
+    cursor: pointer; font-size: 13px; color: var(--ink-2); user-select: none; font-weight: 600;
+  }
+  table.mini { border-collapse: collapse; width: 100%; font-size: 12.5px; margin-top: 6px; }
+  table.mini th, table.mini td {
+    text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); color: var(--ink-2);
+  }
+  table.mini th { color: var(--ink-3); font-weight: 500; }
+  .verdict { font-size: 12px; border-radius: 5px; padding: 1px 7px; white-space: nowrap; }
+  .verdict.support { background: var(--ok-bg); color: var(--ok); }
+  .verdict.other { background: var(--warn-bg); color: var(--warn); }
+
+  /* ---------- 输入区 ---------- */
+  .composer {
+    position: fixed; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, var(--bg) 30%);
+    padding: 18px 22px 16px;
+  }
+  .composer-inner {
+    max-width: 1080px; margin: 0 auto; display: flex; gap: 10px; align-items: flex-end;
+    background: var(--panel); border: 1px solid var(--line-strong); border-radius: 14px;
+    padding: 10px 12px; box-shadow: 0 6px 24px rgba(20, 30, 50, .08);
+  }
+  #q {
+    flex: 1; border: 0; outline: none; resize: none; font: inherit; color: var(--ink);
+    max-height: 140px; min-height: 24px; background: transparent;
+  }
+  #send {
+    border: 0; background: var(--accent); color: #fff; font: inherit; font-size: 14px;
+    padding: 8px 22px; border-radius: 10px; cursor: pointer; flex: none;
+  }
+  #send:disabled { opacity: .5; cursor: wait; }
+  .spinner {
+    display: inline-block; width: 13px; height: 13px; border: 2px solid var(--line-strong);
+    border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite;
+    vertical-align: -2px; margin-right: 7px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .err-box {
+    background: var(--bad-bg); color: var(--bad); border-radius: 10px;
+    padding: 10px 14px; font-size: 13.5px; white-space: pre-wrap;
+  }
+  .empty-hint { text-align: center; color: var(--ink-3); margin-top: 60px; font-size: 14px; }
+  .empty-hint .ex {
+    display: inline-block; margin: 6px 4px 0; padding: 5px 14px; border: 1px solid var(--line-strong);
+    border-radius: 999px; background: var(--panel); cursor: pointer; color: var(--ink-2); font-size: 13px;
+  }
+  .empty-hint .ex:hover { border-color: var(--accent); color: var(--accent); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>LitSearch 全文 RAG<small>计算机论文 · 父子分块检索 · 证据核验</small></h1>
+  <span class="pill" id="st-corpus">语料 …</span>
+  <span class="pill" id="st-index">索引 …</span>
+  <span class="pill" id="st-model">模型 …</span>
+  <span class="pill" id="st-api">API …</span>
+</header>
+
+<div class="wrap">
+  <div class="config">
+    <div class="seg" id="seg-mode">
+      <button data-v="ask" class="on">智能问答</button>
+      <button data-v="search">仅检索</button>
+    </div>
+    <div class="seg" id="seg-pipeline">
+      <button data-v="agentic" class="on" title="查询规划/拆解/复核，最多两轮召回，需 API">Agentic</button>
+      <button data-v="classic" title="单查询直接检索；中文会先翻译成英文，需 API；英文可离线">Classic</button>
+    </div>
+    <label class="field">检索器
+      <select id="opt-retriever">
+        <option value="hybrid" selected>Hybrid（BM25+Dense）</option>
+        <option value="bm25">BM25</option>
+        <option value="dense">Dense（BGE）</option>
+      </select>
+    </label>
+    <label class="field" id="rerank-field" title="对 RRF 前若干子块做 Cross Encoder 重排（仅 Agentic 流程）">
+      <input type="checkbox" id="opt-rerank" checked> 重排
+    </label>
+    <label class="field">返回论文
+      <input type="number" id="opt-topk" value="5" min="1" max="10">
+    </label>
+    <details class="adv">
+      <summary>高级</summary>
+      <div class="adv-body">
+        <label class="field">候选子块/路
+          <input type="number" id="opt-candk" value="100" min="20" max="200" step="20">
+        </label>
+        <label class="field">重排子块数
+          <input type="number" id="opt-rerankk" value="20" min="5" max="50" step="5">
+        </label>
+        <label class="field" title="Dense/重排/API 失败时降级为可用路径继续，并在结果中标注">
+          <input type="checkbox" id="opt-degrade"> 允许降级
+        </label>
+      </div>
+    </details>
+  </div>
+
+  <div id="chat">
+    <div class="empty-hint" id="empty-hint">
+      用中文或英文提问，系统会在 100 篇计算机论文全文中检索证据<br>
+      <span class="ex">How does corrective RAG handle poor retrieval?</span>
+      <span class="ex">检索质量是如何评测的？</span>
+      <span class="ex">哪些论文讨论了 RAG 的不可回答问题？</span>
+    </div>
+  </div>
+</div>
+
+<div class="composer">
+  <div class="composer-inner">
+    <textarea id="q" rows="1" placeholder="输入问题，Enter 发送，Shift+Enter 换行"></textarea>
+    <button id="send">发送</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const chat = $("#chat"), q = $("#q"), sendBtn = $("#send");
+let busy = false;
+
+/* ---------- 状态栏 ---------- */
+async function refreshStatus() {
+  try {
+    const s = await (await fetch("/api/status")).json();
+    const c = s.corpus || {};
+    setPill("#st-corpus", c.parents != null ? `语料 ${c.parents} 篇 · ${c.chunks} 子块` : "语料缺失",
+            c.parents != null ? "ok" : "bad");
+    const idx = s.indexes || {};
+    setPill("#st-index",
+            `BM25 ${idx.bm25 ? "✓" : "✗"} · Dense ${idx.dense ? "✓" : "✗"}`,
+            idx.bm25 && idx.dense ? "ok" : "warn");
+    const m = s.models || {};
+    const modelText = s.warm_status === "ready"
+      ? `模型就绪${m.reranker_loaded ? "（含重排）" : ""}`
+      : s.warm_status === "warming" ? "模型预热中…"
+      : s.warm_status === "failed" ? "预热失败" : "模型未加载";
+    setPill("#st-model", modelText,
+            s.warm_status === "ready" ? "ok" : s.warm_status === "failed" ? "bad" : "warn",
+            s.warm_error || "");
+    setPill("#st-api", s.api_configured ? "DeepSeek API 已配置" : "API 未配置",
+            s.api_configured ? "ok" : "warn",
+            s.api_configured ? "" : "问答与 Agentic 检索需要 API Key；英文 Classic 检索可离线使用");
+  } catch (e) { /* 服务未就绪时保持原样 */ }
+}
+function setPill(sel, text, cls, title) {
+  const el = $(sel);
+  el.textContent = text;
+  el.className = "pill " + (cls || "");
+  if (title) el.title = title;
+}
+refreshStatus();
+setInterval(refreshStatus, 5000);
+
+/* ---------- 配置 ---------- */
+const cfg = { mode: "ask", pipeline: "agentic" };
+function segInit(id, key, onChange) {
+  $(id).addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn || btn.disabled) return;
+    cfg[key] = btn.dataset.v;
+    for (const b of $(id).querySelectorAll("button")) b.classList.toggle("on", b === btn);
+    if (onChange) onChange();
+  });
+}
+function syncPipelineUI() {
+  const agentic = cfg.pipeline === "agentic";
+  $("#opt-retriever").disabled = agentic;
+  if (agentic) $("#opt-retriever").value = "hybrid";
+  $("#opt-rerank").disabled = !agentic;
+}
+segInit("#seg-mode", "mode");
+segInit("#seg-pipeline", "pipeline", syncPipelineUI);
+syncPipelineUI();
+
+function readOptions() {
+  return {
+    question: q.value.trim(),
+    pipeline: cfg.pipeline,
+    retriever: $("#opt-retriever").value,
+    rerank: $("#opt-rerank").checked,
+    top_k: +$("#opt-topk").value || 5,
+    candidate_k: +$("#opt-candk").value || 100,
+    rerank_k: +$("#opt-rerankk").value || 20,
+    allow_degrade: $("#opt-degrade").checked,
+  };
+}
+
+/* ---------- 渲染工具 ---------- */
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function fmtSec(s) { return s == null ? "—" : s < 1 ? Math.round(s * 1000) + " ms" : s.toFixed(1) + " s"; }
+
+/* 轻量 Markdown：转义 → 行内代码 → 粗斜体 → 引用编号 → 列表与段落 */
+function renderAnswer(text) {
+  let html = esc(text);
+  html = html.replace(/`([^`\n]+)`/g, (_, c) => `<code>${c}</code>`);
+  html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+             .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+  html = html.replace(/\[(\d+(?:\s*[-–,，;；]\s*\d+)*)\]/g, (match, group) => {
+    const nums = [];
+    for (const part of group.split(/[,，;；]/)) {
+      const r = part.trim().match(/^(\d+)\s*[-–]\s*(\d+)$/);
+      if (r) { for (let i = +r[1]; i <= +r[2] && i - r[1] < 20; i++) nums.push(i); }
+      else if (/^\d+$/.test(part.trim())) nums.push(+part.trim());
+    }
+    return nums.map((n) => `<sup class="cite" data-n="${n}">${n}</sup>`).join("");
+  });
+  const blocks = html.split(/\n{2,}/).map((block) => {
+    const lines = block.split("\n");
+    if (lines.every((l) => /^\s*[-•]/.test(l)))
+      return "<ul>" + lines.map((l) => `<li>${l.replace(/^\s*[-•]\s*/, "")}</li>`).join("") + "</ul>";
+    if (lines.every((l) => /^\s*\d+[.、)]/.test(l)))
+      return "<ol>" + lines.map((l) => `<li>${l.replace(/^\s*\d+[.、)]\s*/, "")}</li>`).join("") + "</ol>";
+    return `<p>${lines.join("<br>")}</p>`;
+  });
+  return blocks.join("");
+}
+
+function clampText(text, id) {
+  const long = text.length > 480;
+  return `<div class="ctx-text ${long ? "clamp" : ""}" id="${id}">${esc(text)}</div>` +
+    (long ? `<button class="more" data-target="${id}">展开全文 ▾</button>` : "");
+}
+
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".more");
+  if (btn) {
+    const target = document.getElementById(btn.dataset.target);
+    const clamped = target.classList.toggle("clamp");
+    btn.textContent = clamped ? "展开全文 ▾" : "收起 ▴";
+    return;
+  }
+  const cite = e.target.closest("sup.cite");
+  if (cite) {
+    const card = document.getElementById("ctx-" + cite.dataset.n);
+    if (card) {
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
+      card.classList.add("flash");
+      setTimeout(() => card.classList.remove("flash"), 1600);
+    }
+  }
+});
+
+/* ---------- 问答结果 ---------- */
+const STATUS_MAP = {
+  verified: ["已核验", "ok"],
+  refused_no_retrieval: ["拒答 · 无检索结果", "warn"],
+  refused_evidence_insufficient: ["拒答 · 证据不足", "warn"],
+  refused_unverified: ["拒答 · 未通过核验", "bad"],
+  failed: ["失败", "bad"],
+};
+
+function rankChips(chunk) {
+  const chips = [];
+  if (chunk.bm25_rank) chips.push(`BM25#${chunk.bm25_rank}`);
+  if (chunk.dense_rank) chips.push(`Dense#${chunk.dense_rank}`);
+  if (chunk.rrf_rank) chips.push(`RRF#${chunk.rrf_rank}`);
+  if (chunk.rerank_score != null) chips.push(`CE ${Number(chunk.rerank_score).toFixed(3)}`);
+  return chips.map((c) => `<span class="tag">${esc(c)}</span>`).join(" ");
+}
+
+function renderAsk(data, elapsedShown) {
+  const [statusText, statusCls] = STATUS_MAP[data.status] || [data.status, "warn"];
+  let html = `<div class="meta">
+      <span class="pill ${statusCls}">${statusText}</span>`;
+  if (data.degraded) html += `<span class="pill warn" title="${esc(JSON.stringify(data.degradations))}">已降级</span>`;
+  html += `<span class="pill">上下文 ${(data.context_chars / 1000).toFixed(1)}k 字符</span>
+      <span class="pill">API ${data.api_call_count} 次</span>
+      <span class="time">${fmtSec(data.elapsed_seconds)}</span></div>`;
+  html += `<div class="answer">${renderAnswer(data.answer)}</div>`;
+
+  if (data.contexts && data.contexts.length) {
+    const cited = new Set(data.cited || []);
+    html += `<div class="sec-title">证据子块（${data.contexts.length}）
+      <span class="muted">点击正文中的编号可跳转</span></div>`;
+    data.contexts.forEach((ctx) => {
+      html += `<div class="ctx-card" id="ctx-${ctx.number}">
+        <div class="ctx-head">
+          <span class="ctx-num">[${ctx.number}]</span>
+          <span class="t">${esc(ctx.title || "（无标题）")}</span>
+          ${cited.has(ctx.number) ? '<span class="pill ok">被引用</span>' : ""}
+        </div>
+        <div class="muted">${esc(ctx.section)} · corpusid ${esc(ctx.paper_id)} · ${esc(ctx.chunk_id)}
+          · <a href="${esc(ctx.source_url)}" target="_blank" rel="noopener">数据集来源</a></div>
+        ${clampText(ctx.text, "ctxt-" + ctx.number)}
+      </div>`;
+    });
+  }
+  html += renderFold("检索轨迹", traceHtml(data.retrieval_trace));
+  if (data.candidate_parents && data.candidate_parents.length)
+    html += renderFold(`候选父论文（${data.candidate_parents.length}）`, candidatesHtml(data.candidate_parents));
+  if (data.verification && data.verification.claims && data.verification.claims.length)
+    html += renderFold(`逐条核验（${data.verification.claims.length} 个论断）`, claimsHtml(data.verification));
+  html += renderFold("性能与成本", perfHtml(data));
+  return html;
+}
+
+function renderFold(title, inner) {
+  return `<details class="fold"><summary>${esc(title)}</summary>${inner}</details>`;
+}
+
+function traceHtml(trace) {
+  if (!trace || !Object.keys(trace).length) return '<div class="muted">无</div>';
+  const row = (k, v) => `<tr><th>${k}</th><td>${esc(v ?? "—")}</td></tr>`;
+  return `<table class="mini">
+    ${row("第一轮查询", (trace.first_round_queries || []).join(" ｜ "))}
+    ${row("补查询", (trace.follow_up_queries || []).join(" ｜ ") || "无")}
+    ${row("检索轮数", trace.retrieval_rounds)}
+    ${row("实际流程", trace.effective_pipeline)}
+    ${row("实际检索器", trace.effective_retriever)}
+    ${row("重排", trace.effective_rerank ? "已执行" : "未执行")}
+    ${trace.intent ? row("查询意图", trace.intent) : ""}
+  </table>`;
+}
+
+function candidatesHtml(parents) {
+  return `<table class="mini"><tr><th>#</th><th>标题</th><th>corpusid</th><th>最佳子块排名</th><th>命中子块</th></tr>` +
+    parents.map((p, i) => `<tr><td>${i + 1}</td><td>${esc(p.title || "—")}</td>
+      <td>${esc(p.paper_id)}</td><td>${p.best_chunk_rank ?? "—"}</td>
+      <td>${(p.matched_chunk_ids || []).length}</td></tr>`).join("") + "</table>";
+}
+
+function claimsHtml(verification) {
+  return verification.claims.map((c) => {
+    const ok = c.verdict === "support";
+    return `<div style="margin:8px 0">
+      <span class="verdict ${ok ? "support" : "other"}">${esc(ok ? "支持" : c.verdict)}</span>
+      <span style="font-size:13px">${esc(c.claim)}</span>
+      ${c.citations && c.citations.length ? `<span class="muted">引用 [${c.citations.join(", ")}]</span>` : ""}
+      ${c.reason ? `<div class="muted">${esc(c.reason)}</div>` : ""}
+    </div>`;
+  }).join("");
+}
+
+function perfHtml(data) {
+  let html = "";
+  if (data.timings && data.timings.length) {
+    html += `<table class="mini"><tr><th>阶段</th><th>耗时</th></tr>` +
+      data.timings.map((t) =>
+        `<tr><td>${esc(t.stage)}${t.round ? " · 第" + t.round + "轮" : ""}${t.attempt ? " · 第" + t.attempt + "次" : ""}</td>
+         <td>${fmtSec(t.seconds)}</td></tr>`).join("") + "</table>";
+  }
+  const facts = [];
+  if (data.cost) {
+    facts.push(`token：输入 ${data.cost.prompt_tokens ?? "—"}（缓存命中 ${data.cost.cache_hit_tokens ?? 0}），输出 ${data.cost.completion_tokens ?? "—"}`);
+    if (data.cost.estimated_usd_offpeak != null)
+      facts.push(`估算成本 $${data.cost.estimated_usd_offpeak} – $${data.cost.estimated_usd_peak}（DeepSeek 闲时–忙时）`);
+  }
+  if (data.report_path) facts.push(`运行报告：${data.report_path}`);
+  if (facts.length) html += `<div class="muted" style="margin-top:6px">${facts.map(esc).join("<br>")}</div>`;
+  return html || '<div class="muted">无</div>';
+}
+
+/* ---------- 检索结果 ---------- */
+function renderSearch(data) {
+  let html = `<div class="meta">
+    <span class="pill ok">检索完成</span>
+    <span class="pill">${data.parents.length} 篇父论文 · ${data.child_hit_count} 个命中子块</span>`;
+  if (data.degradations && data.degradations.length)
+    html += `<span class="pill warn" title="${esc(JSON.stringify(data.degradations))}">已降级</span>`;
+  html += `<span class="time">${fmtSec(data.elapsed_seconds)}</span></div>`;
+  if (!data.parents.length) {
+    html += '<div class="muted" style="padding:12px 0">没有检索到相关论文，换个表述试试。</div>';
+  }
+  data.parents.forEach((p, i) => {
+    html += `<div class="paper-card">
+      <div class="paper-head">
+        <span class="ctx-num">${i + 1}</span>
+        <span class="t">${esc(p.title || "（无标题）")}</span>
+        <a class="muted" href="${esc(p.source_url)}" target="_blank" rel="noopener">来源</a>
+      </div>
+      <div class="muted">corpusid ${esc(p.paper_id)} · 最佳子块排名 ${p.best_chunk_rank ?? "—"} · 命中 ${p.matched_chunks.length} 个子块</div>`;
+    if (p.abstract) html += clampText("摘要：" + p.abstract, `abs-${i}`);
+    p.matched_chunks.forEach((c, j) => {
+      html += `<div style="margin-top:8px;border-top:1px dashed var(--line);padding-top:6px">
+        <div>${rankChips(c)} <span class="muted">${esc(c.section)} · ${esc(c.chunk_id)}</span></div>
+        ${clampText(c.text, `chk-${i}-${j}`)}
+      </div>`;
+    });
+    html += "</div>";
+  });
+  html += renderFold("检索轨迹", traceHtml(data.trace));
+  html += renderFold("性能", perfHtml(data));
+  return html;
+}
+
+/* ---------- 发送 ---------- */
+let uid = 0;
+async function send() {
+  const text = q.value.trim();
+  if (!text || busy) return;
+  busy = true;
+  sendBtn.disabled = true;
+  $("#empty-hint")?.remove();
+  chat.insertAdjacentHTML("beforeend", `<div class="msg-user">${esc(text)}</div>`);
+  q.value = "";
+  q.style.height = "auto";
+  const aiId = "ai-" + ++uid;
+  const started = Date.now();
+  chat.insertAdjacentHTML("beforeend",
+    `<div class="msg-ai" id="${aiId}"><div class="meta"><span class="pill"><span class="spinner"></span><span class="wait-text">处理中</span></span></div></div>`);
+  const box = document.getElementById(aiId);
+  box.scrollIntoView({ behavior: "smooth", block: "end" });
+  const waitEl = box.querySelector(".wait-text");
+  const timer = setInterval(() => {
+    waitEl.textContent = `处理中 ${(Date.now() - started) / 1000 | 0}s（首次含模型加载会更久）`;
+  }, 500);
+  const opts = readOptions();
+  opts.question = text;
+  try {
+    const resp = await fetch(cfg.mode === "ask" ? "/api/ask" : "/api/search", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(opts),
+    });
+    const data = await resp.json();
+    clearInterval(timer);
+    if (data.status === "error") {
+      box.innerHTML = `<div class="err-box">${esc(data.error)}</div>`;
+    } else {
+      box.innerHTML = cfg.mode === "ask" ? renderAsk(data) : renderSearch(data);
+    }
+  } catch (e) {
+    clearInterval(timer);
+    box.innerHTML = `<div class="err-box">网络或服务错误：${esc(e.message)}</div>`;
+  }
+  busy = false;
+  sendBtn.disabled = false;
+  box.scrollIntoView({ behavior: "smooth", block: "start" });
+  q.focus();
+  refreshStatus();
+}
+
+sendBtn.addEventListener("click", send);
+q.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+});
+q.addEventListener("input", () => {
+  q.style.height = "auto";
+  q.style.height = Math.min(q.scrollHeight, 140) + "px";
+});
+document.querySelectorAll(".empty-hint .ex").forEach((el) =>
+  el.addEventListener("click", () => { q.value = el.textContent; send(); }));
+q.focus();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+# GPU-ready full-text indexing environment for the AutoDL CUDA 12.x image.
+# Keep fastembed-gpu mutually exclusive with the CPU-only fastembed package.
+huggingface-hub==1.33.0
+fsspec[http]==2026.9.0
+pyarrow==25.0.1
+fastembed-gpu==0.8.1
+onnxruntime-gpu==1.20.2
+faiss-cpu==1.15.1
+numpy>=2.3,<3
